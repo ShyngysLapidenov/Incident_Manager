@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Incident Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2rem;
+            background: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            max-width: 600px;
+            margin: auto;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        input, textarea, button {
+            width: 100%;
+            padding: 0.6rem;
+            margin: 0.5rem 0;
+        }
+        ul {
+            padding: 0;
+            list-style: none;
+        }
+        li {
+            background: #eee;
+            margin: 0.5rem 0;
+            padding: 0.8rem;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-new { color: red; }
+        .status-resolved { color: green; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Incident Manager</h2>
+        <form id="incident-form">
+            <input type="text" id="title" placeholder="Title" required />
+            <textarea id="description" placeholder="Description" required></textarea>
+            <button type="submit">Add Incident</button>
+        </form>
+
+        <ul id="incident-list">
+            {% for incident in incidents %}
+                <li id="incident-{{ incident.id }}">
+                    <div>
+                        <strong>{{ incident.title }}</strong><br>
+                        <small>{{ incident.description }}</small><br>
+                        <span class="status-{{ incident.status }}">{{ incident.status }}</span>
+                    </div>
+                    {% if incident.status != 'resolved' %}
+                        <button onclick="resolveIncident({{ incident.id }})">Resolve</button>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <script>
+        const form = document.getElementById('incident-form');
+        const list = document.getElementById('incident-list');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+
+            const res = await fetch('/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ title, description })
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                const newItem = document.createElement('li');
+                newItem.innerHTML = `
+                    <div>
+                        <strong>${title}</strong><br>
+                        <small>${description}</small><br>
+                        <span class="status-new">new</span>
+                    </div>
+                    <button onclick="resolveIncidentTemp(this)">Resolve</button>
+                `;
+                list.prepend(newItem);
+                form.reset();
+            }
+        });
+
+        async function resolveIncident(id) {
+            const res = await fetch(`/resolve/${id}`, { method: 'POST' });
+            const result = await res.json();
+            if (result.success) {
+                const el = document.getElementById(`incident-${id}`);
+                const status = el.querySelector('span');
+                status.textContent = 'resolved';
+                status.className = 'status-resolved';
+                const btn = el.querySelector('button');
+                if (btn) btn.remove();
+            }
+        }
+
+        function resolveIncidentTemp(button) {
+            const li = button.parentElement;
+            const status = li.querySelector('span');
+            status.textContent = 'resolved';
+            status.className = 'status-resolved';
+            button.remove();
+        }
+    </script>
+</body>
+</html>
